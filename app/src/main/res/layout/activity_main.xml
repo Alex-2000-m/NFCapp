@@ -8,13 +8,30 @@
         android:id="@+id/checkbox_write"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="是否向NFC标签写入数据" />
+        android:text="NFC标签写入模式" />
+
+    <CheckBox
+        android:id="@+id/checkbox_storage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NFC标签存储模式" />
+
+<!--    <CheckBox-->
+<!--        android:id="@+id/checkbox_copy"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="NFC标签复制模式" />-->
+    <CheckBox
+        android:id="@+id/checkbox_read"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NFC标签读取模式" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="5dp"
-        android:text="请将NFC标签或贴纸靠近手机背面"
+        android:text="1.请将NFC标签或贴纸靠近手机背面2.复制卡片请先勾选存储模式"
         android:textSize="16sp" />
 
 

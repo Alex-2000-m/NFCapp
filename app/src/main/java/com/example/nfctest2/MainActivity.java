@@ -19,14 +19,21 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends Activity {
     private CheckBox      mWriteData;
+    private CheckBox      mCopyData;
+    private CheckBox      mStorageData;
+    private CheckBox      mReadData;
     private NfcAdapter    mNfcAdapter;
     private PendingIntent mPendingIntent;
+    byte[][][] storageTagData = new byte[16][4][];
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         //获取默认的NFC控制器
         mWriteData = (CheckBox) findViewById(R.id.checkbox_write);
+//        mCopyData = (CheckBox) findViewById(R.id.checkbox_copy);
+        mStorageData = (CheckBox) findViewById(R.id.checkbox_storage);
+        mReadData = (CheckBox) findViewById(R.id.checkbox_read);
         mNfcAdapter = mNfcAdapter.getDefaultAdapter(this);
         if (mNfcAdapter == null) {
             Toast.makeText(this, "设备不支持NFC！", Toast.LENGTH_LONG).show();
@@ -74,7 +81,24 @@ public class MainActivity extends Activity {
                 Log.i(data, "ouput");
                 Toast.makeText(this, data, Toast.LENGTH_LONG).show();
             }
-        } else {
+        }
+        if(mStorageData.isChecked()){
+            storageTag(tag);
+            String data = storageTag(tag);
+            if (data != null) {
+                Log.i(data, "ouput");
+                Toast.makeText(this, data, Toast.LENGTH_LONG).show();
+            }
+        }
+//        if (mCopyData.isChecked()){
+//            writeTag2(tag);
+//            String data2 = writeTag2(tag);
+//            if (data2 != null) {
+//                Log.i(data2, "ouput");
+//                Toast.makeText(this, data2, Toast.LENGTH_LONG).show();
+//            }
+//        }
+        if (mReadData.isChecked()) {
             String data = readTag(tag);
             if (data != null) {
                 Log.i(data, "ouput");
@@ -92,6 +116,83 @@ public class MainActivity extends Activity {
 
     }
 
+    public String storageTag(Tag tag){
+        MifareClassic mfc = MifareClassic.get(tag);
+        for (String tech : tag.getTechList()) {
+            System.out.println(tech);
+        }
+        boolean auth = false;
+        //读取TAG
+
+        try {
+            String metaInfo = "";
+            //Enable I/O operations to the tag from this TagTechnology object.
+            mfc.connect();
+            int type = mfc.getType();//获取TAG的类型
+            int sectorCount = mfc.getSectorCount();//获取TAG中包含的扇区数
+            String typeS = "";
+            switch (type) {
+                case MifareClassic.TYPE_CLASSIC:
+                    typeS = "TYPE_CLASSIC";
+                    break;
+                case MifareClassic.TYPE_PLUS:
+                    typeS = "TYPE_PLUS";
+                    break;
+                case MifareClassic.TYPE_PRO:
+                    typeS = "TYPE_PRO";
+                    break;
+                case MifareClassic.TYPE_UNKNOWN:
+                    typeS = "TYPE_UNKNOWN";
+                    break;
+            }
+            metaInfo += "卡片类型：" + typeS + "\n共" + sectorCount + "个扇区\n共"
+                    + mfc.getBlockCount() + "个块\n存储空间: " + mfc.getSize()
+                    + "B\n";
+            for (int j = 0; j < sectorCount; j++) {
+                //Authenticate a sector with key A.
+                auth = mfc.authenticateSectorWithKeyA(j,
+                        MifareClassic.KEY_DEFAULT);
+                int bCount;
+                int bIndex;
+                if (auth) {
+                    metaInfo += "Sector " + j + ":验证成功\n";
+                    // 读取扇区中的块
+                    bCount = mfc.getBlockCountInSector(j);
+                    bIndex = mfc.sectorToBlock(j);
+                    for (int i = 0; i < bCount; i++) {
+                        byte[] data = mfc.readBlock(bIndex);
+                        storageTagData[j][i]=data;
+                        if(storageTagData[j][i]==data) {
+                            metaInfo += "Block " + bIndex + " : "
+                                    + "存储成功！"+ "\n";
+                            bIndex++;
+                        }
+                        else {
+                            Log.d("storageTagData","null!");
+                        }
+                    }
+                    Log.d("???",""+storageTagData[0][0]);
+                } else {
+                    metaInfo += "Sector " + j + ":验证失败\n";
+                }
+            }
+            return metaInfo;
+        } catch (Exception e) {
+            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        } finally {
+            if (mfc != null) {
+                try {
+                    mfc.close();
+                } catch (IOException e) {
+                    Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG)
+                            .show();
+                }
+            }
+        }
+        return null;
+    }
+
     public void writeTag(Tag tag) {
 
         MifareClassic mfc = MifareClassic.get(tag);
@@ -100,14 +201,14 @@ public class MainActivity extends Activity {
         try {
             mfc.connect();
             boolean auth = false;
-            short sectorAddress = 1;
+            short sectorAddress = 0;
             auth = mfc.authenticateSectorWithKeyA(sectorAddress,
                     MifareClassic.KEY_DEFAULT);
             if (auth) {
                 // 扇区的最后一个块用于KeyA，KeyB不能被覆盖
                 //blockindex是要写入的目标块的序号
-                mfc.writeBlock(4, "1313838438000000".getBytes());
-                mfc.writeBlock(5, "1322676888000000".getBytes());
+                byte[] temp=storageTagData[0][0];
+                mfc.writeBlock(0,temp);
                 mfc.close();
                 Toast.makeText(this, "写入成功", Toast.LENGTH_SHORT).show();
             }
@@ -123,6 +224,58 @@ public class MainActivity extends Activity {
             }
         }
     }
+
+//    public String writeTag2(Tag tag) {
+//
+//        MifareClassic mfc = MifareClassic.get(tag);
+//        Log.d("writeTag2","writeTag2方法被调用了！");
+//        for (String tech : tag.getTechList()) {
+//            System.out.println(tech);
+//        }
+//        try {
+//            String metaInfo2 = "";
+//            mfc.connect();
+//            int sectorCount = mfc.getSectorCount();//获取TAG中包含的扇区数
+//            Log.d("sectorCount",""+sectorCount);
+//            boolean auth = false;
+//
+//            for (int j = 0; j < sectorCount; j++) {
+//                //Authenticate a sector with key A.
+//                auth = mfc.authenticateSectorWithKeyA(j,
+//                        MifareClassic.KEY_DEFAULT);
+//                int bCount;
+//                int bIndex;
+//                if (auth) {
+//                    metaInfo2 += "Sector " + j + ":验证成功\n";
+//                    // 读取扇区中的块
+//                    bCount = mfc.getBlockCountInSector(j);
+//                    bIndex = mfc.sectorToBlock(j);
+//                    for (int i = 0; i < bCount; i++) {
+//                        mfc.writeBlock(i,storageTagData[j][i]);
+//                        if(mfc.readBlock(i)==storageTagData[j][i]) {
+//                            metaInfo2 += "Block " + bIndex + " : "
+//                                    + "写入成功！"+ "\n";
+//                            bIndex++;
+//                        };
+//                    }
+//                } else {
+//                    metaInfo2 += "Sector " + j + ":验证失败\n";
+//                }
+//            }
+//            return  metaInfo2;
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        } finally {
+//            try {
+//                mfc.close();
+//            } catch (IOException e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            }
+//        }
+//        return null;
+//    }
 
     //字符序列转换为16进制字符串
     private String bytesToHexString(byte[] src) {
